@@ -2880,6 +2880,7 @@ void serve(struct client_state *csp)
 static void serve(struct client_state *csp)
 #endif /* def AMIGA */
 {
+   //csp对应的请求，并为其处理响应
    int config_file_change_detected = 0; /* Only used for debugging */
 #ifdef FEATURE_CONNECTION_KEEP_ALIVE
 #ifdef FEATURE_CONNECTION_SHARING
@@ -3370,6 +3371,7 @@ int main(int argc, char **argv)
 
 #if !defined(_WIN32) || defined(_WIN_CONSOLE)
 
+      //显示帮助信息
       if (strcmp(argv[argc_pos], "--help") == 0)
       {
          usage(argv[0]);
@@ -3465,6 +3467,7 @@ int main(int argc, char **argv)
    show_version(Argv[0]);
 
 #if defined(unix)
+   //配置文件非绝对路径，转换为绝对路径
    if (*configfile != '/')
    {
       char cwd[BUFFER_SIZE];
@@ -3562,6 +3565,7 @@ int main(int argc, char **argv)
     */
 #if defined(unix)
 {
+   //制作daemon
    if (daemon_mode)
    {
       int fd;
@@ -3774,8 +3778,10 @@ static jb_socket bind_port_helper(const char *haddr, int hport)
    int result;
    jb_socket bfd;
 
+   //完成绑定，监听
    result = bind_port(haddr, hport, &bfd);
 
+   //绑定或监听失败
    if (result < 0)
    {
       const char *bind_address = (NULL != haddr) ? haddr : "INADDR_ANY";
@@ -3802,6 +3808,7 @@ static jb_socket bind_port_helper(const char *haddr, int hport)
    }
 
 #ifndef _WIN32
+   //监听数量超限
    if (bfd >= FD_SETSIZE)
    {
       log_error(LOG_LEVEL_FATAL,
@@ -3922,6 +3929,7 @@ static void listen_loop(void)
    struct configuration_spec *config;
    unsigned int active_threads = 0;
 
+   //加载配置
    config = load_config();
 
 #ifdef FEATURE_CONNECTION_SHARING
@@ -3932,6 +3940,7 @@ static void listen_loop(void)
    initialize_reusable_connections();
 #endif /* def FEATURE_CONNECTION_SHARING */
 
+   //完成配置要求的bind,监听
    bind_ports_helper(config, bfds);
 
 #ifdef FEATURE_GRACEFUL_TERMINATION
@@ -3941,6 +3950,7 @@ static void listen_loop(void)
 #endif
    {
 #if !defined(FEATURE_PTHREAD) && !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__)
+      //回收已退出的子进程退出
       while (waitpid(-1, NULL, WNOHANG) > 0)
       {
          /* zombie children */
@@ -3979,6 +3989,7 @@ static void listen_loop(void)
          "Waiting for the next client connection. Currently active threads: %d",
          active_threads);
 
+      //接收一个连接
       if (!accept_connection(csp, bfds))
       {
          log_error(LOG_LEVEL_CONNECT, "accept failed: %E");
@@ -3996,6 +4007,7 @@ static void listen_loop(void)
       csp->flags |= CSP_FLAG_ACTIVE;
       csp->server_connection.sfd = JB_INVALID_SOCKET;
 
+      //为其装载配置
       csp->config = config = load_config();
 
       if (config->need_bind)
@@ -4049,6 +4061,7 @@ static void listen_loop(void)
          log_error(LOG_LEVEL_CONNECT,
             "Rejecting connection from %s. Maximum number of connections reached.",
             csp->ip_addr_str);
+         //向对端回复503,连接过多错误
          write_socket(csp->cfd, TOO_MANY_CONNECTIONS_RESPONSE,
             strlen(TOO_MANY_CONNECTIONS_RESPONSE));
          close_socket(csp->cfd);
@@ -4075,6 +4088,7 @@ static void listen_loop(void)
             pthread_t the_thread;
             pthread_attr_t attrs;
 
+            //创建线程，交给serve服务此client
             pthread_attr_init(&attrs);
             pthread_attr_setdetachstate(&attrs, PTHREAD_CREATE_DETACHED);
             errno = pthread_create(&the_thread, &attrs,
@@ -4241,6 +4255,7 @@ static void listen_loop(void)
       }
       else
       {
+         //非线程情况下直接服务此csp
          serve(csp);
       }
    }

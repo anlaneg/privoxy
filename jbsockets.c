@@ -140,6 +140,14 @@ static void set_no_delay_flag(int fd)
 #ifdef TCP_NODELAY
    int mi = 1;
 
+   //TCP/IP协议中针对TCP默认开启了Nagle算法。Nagle算法通过减少需要传输的数据包，来优化网络。
+   //在内核实现中，数据包的发送和接受会先做缓存，分别对应于写缓存和读缓存。
+   //启动TCP_NODELAY，就意味着禁用了Nagle算法，允许小包的发送。对于延时敏感型，
+   //同时数据传输量比较小的应用，开启TCP_NODELAY选项无疑是一个正确的选择。
+   //比如，对于SSH会话，用户在远程敲击键盘发出指令的速度相对于网络带宽能力来说，绝对不是在一个量级上的，所以数据传输非常少；
+   //而又要求用户的输入能够及时获得返回，有较低的延时。如果开启了Nagle算法，就很可能出现频繁的延时，导致用户体验极差。
+   //当然，你也可以选择在应用层进行buffer，比如使用java中的buffered stream，尽可能地将大包写入到内核的写缓存进行发送；
+   //vectored I/O（writev接口）也是个不错的选择。
    if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &mi, sizeof(int)))
    {
       log_error(LOG_LEVEL_ERROR,
@@ -834,6 +842,7 @@ void drain_and_close_socket(jb_socket fd)
  *                                    -2 if address unresolvable,
  *                                    -1 otherwise
  *********************************************************************/
+//绑定并填充pdf对应的socket
 int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
 {
 #ifdef HAVE_RFC2553
@@ -876,6 +885,7 @@ int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
        * version available.
        */
       hints.ai_family = AF_INET;
+      //监听到0.0.0.0
    }
    else
    {
@@ -888,6 +898,7 @@ int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
    hints.ai_addr = NULL;
    hints.ai_next = NULL;
 
+   //获取对应的ip地址
    if ((retval = getaddrinfo(hostnam, servnam, &hints, &result)))
    {
       log_error(LOG_LEVEL_ERROR,
@@ -920,6 +931,7 @@ int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
 #endif /* def HAVE_RFC2553 */
 
 #ifdef HAVE_RFC2553
+   //监听相应的socket
    for (rp = result; rp != NULL; rp = rp->ai_next)
    {
       fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
@@ -933,6 +945,7 @@ int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
    if (fd < 0)
 #endif
    {
+       //创建socket失败
 #ifdef HAVE_RFC2553
       continue;
 #else
@@ -957,6 +970,7 @@ int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
     * sockets which are *not* in listen state in Linux,
     * e.g. sockets in TIME_WAIT. YMMV.
     */
+   //指明地址重用
    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&one, sizeof(one));
 #endif /* ndef _WIN32 */
 
@@ -1009,6 +1023,7 @@ int bind_port(const char *hostnam, int portnum, jb_socket *pfd)
    }
 #endif /* ndef HAVE_RFC2553 */
 
+   //监听fd
    while (listen(fd, MAX_LISTEN_BACKLOG) == -1)
    {
       if (errno != EINTR)
@@ -1201,6 +1216,7 @@ void get_host_information(jb_socket afd, char **ip_address, char **port,
  *                On an error it returns 0 (FALSE).
  *
  *********************************************************************/
+//将所有的fd加入到select中，但仅处理一个触发read事件的fd对应的client,并将其封装为csp返回
 int accept_connection(struct client_state * csp, jb_socket fds[])
 {
 #ifdef HAVE_RFC2553
@@ -1229,8 +1245,9 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
     * Return immediately if no socket is listening.
     * XXX: Why not treat this as fatal error?
     */
+   //将fds中所有fd添加入select中，检测是否有client进入
    FD_ZERO(&selected_fds);
-   max_selected_socket = 0;
+   max_selected_socket = 0;//获取最大的fd
    for (i = 0; i < MAX_LISTENING_SOCKETS; i++)
    {
       if (JB_INVALID_SOCKET != fds[i])
@@ -1242,6 +1259,8 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
          }
       }
    }
+
+   //无需要select的fd,退出
    if (0 == max_selected_socket)
    {
       return 0;
@@ -1266,6 +1285,8 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
       }
       return 0;
    }
+
+   //获取第i个元素发生了读事件
    for (i = 0; i < MAX_LISTENING_SOCKETS && !FD_ISSET(fds[i], &selected_fds);
          i++);
    if (i >= MAX_LISTENING_SOCKETS)
@@ -1288,6 +1309,7 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
 #else
    do
    {
+      //接入client
 #if defined(FEATURE_ACCEPT_FILTER) && defined(SO_ACCEPTFILTER)
       struct accept_filter_arg af_options;
       bzero(&af_options, sizeof(af_options));
@@ -1302,6 +1324,9 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
    }
 #endif
 
+   //SO_LINGER
+   //在默认情况下,当调用close关闭socke的使用,close会立即返回,但是,
+   //如果send buffer中还有数据,系统会试着先把send buffer中的数据发送出去,然后close才返回.
 #ifdef SO_LINGER
    {
       struct linger linger_options;
@@ -1315,6 +1340,7 @@ int accept_connection(struct client_state * csp, jb_socket fds[])
 #endif
 
 #ifndef _WIN32
+   //fd数量超限
    if (afd >= FD_SETSIZE)
    {
       log_error(LOG_LEVEL_ERROR,
