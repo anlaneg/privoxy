@@ -304,6 +304,7 @@ long flush_socket(jb_socket fd, struct iob *iob)
  *                or buffer limit reached.
  *
  *********************************************************************/
+//将数据填加入iob中
 jb_err add_to_iob(struct iob *iob, const size_t buffer_limit, char *src, long n)
 {
    size_t used, offset, need;
@@ -311,9 +312,10 @@ jb_err add_to_iob(struct iob *iob, const size_t buffer_limit, char *src, long n)
 
    if (n <= 0) return JB_ERR_OK;
 
+   //已用长度
    used   = (size_t)(iob->eod - iob->buf);
    offset = (size_t)(iob->cur - iob->buf);
-   need   = used + (size_t)n + 1;
+   need   = used + (size_t)n + 1;//复制需要空间
 
    /*
     * If the buffer can't hold the new data, extend it first.
@@ -321,6 +323,7 @@ jb_err add_to_iob(struct iob *iob, const size_t buffer_limit, char *src, long n)
     */
    if (need > buffer_limit)
    {
+	   //buffer不足以容纳数据
       log_error(LOG_LEVEL_INFO,
          "Buffer limit reached while extending the buffer (iob). Needed: %d. Limit: %d",
          need, buffer_limit);
@@ -329,6 +332,7 @@ jb_err add_to_iob(struct iob *iob, const size_t buffer_limit, char *src, long n)
 
    if (need > iob->size)
    {
+	   //复制需要的空间，超过iob能提供的空间，增大iob
       size_t want = iob->size ? iob->size : 512;
 
       while (want <= need)
@@ -350,12 +354,14 @@ jb_err add_to_iob(struct iob *iob, const size_t buffer_limit, char *src, long n)
          return JB_ERR_MEMORY;
       }
 
+      //更新iob使用的空间
       /* Update the iob pointers */
       iob->cur = p + offset;
       iob->eod = p + used;
       iob->buf = p;
    }
 
+   //将src中的n个元素copy到iob结尾位置处
    /* copy the new data into the iob buffer */
    memcpy(iob->eod, src, (size_t)n);
 
@@ -769,20 +775,25 @@ static void normalize_lws(char *header)
 {
    char *p = header;
 
+   //用于将空格压缩成一个（跳过引号括起来的字符串）
    while (*p != '\0')
    {
+	   //*p,*(p+1) 均为空格
       if (privoxy_isspace(*p) && privoxy_isspace(*(p+1)))
       {
          char *q = p+1;
 
+         //自第二个空格开始跳，跳过遇到的空格
          while (privoxy_isspace(*q))
          {
             q++;
          }
          log_error(LOG_LEVEL_HEADER, "Reducing whitespace in '%s'", header);
+         //移除p+1,q之间的空格
          string_move(p+1, q);
       }
 
+      //转换'\t'为' '
       if (*p == '\t')
       {
          log_error(LOG_LEVEL_HEADER,
@@ -791,6 +802,7 @@ static void normalize_lws(char *header)
       }
       else if (*p == '"')
       {
+    	  //遇到字符串起始，跳到自符号结尾（中间不分析）
          char *end_of_token = strstr(p+1, "\"");
 
          if (NULL != end_of_token)
@@ -800,13 +812,17 @@ static void normalize_lws(char *header)
          }
          else
          {
+        	 //没有找到字符串结尾
             log_error(LOG_LEVEL_HEADER,
                "Ignoring single quote in '%s'", header);
          }
       }
+      //跳过p,继续分析下一个token
       p++;
    }
 
+   //如果字符串里有':',检查p不能为首字符，且p前一个字符必须为空格
+   //将‘：’前的空格移除掉
    p = strchr(header, ':');
    if ((p != NULL) && (p != header) && privoxy_isspace(*(p-1)))
    {
@@ -837,12 +853,15 @@ static void normalize_lws(char *header)
  *          a complete header line.
  *
  *********************************************************************/
+//自iob中分析header line,返回NULL,则遇到空行，返回""，则需要继续读取，否则为有效行
 char *get_header(struct iob *iob)
 {
    char *header;
 
+   //获取http header line
    header = get_header_line(iob);
 
+   //空行或者非有效行，返回header
    if ((header == NULL) || (*header == '\0'))
    {
       /*
@@ -851,16 +870,19 @@ char *get_header(struct iob *iob)
       return header;
    }
 
+   //获得有效的http header line
    while ((iob->cur[0] == ' ') || (iob->cur[0] == '\t'))
    {
       /*
        * Header spans multiple lines, append the next one.
        */
+	   //header跨行问题，添加下一个header_line
       char *continued_header;
 
       continued_header = get_header_line(iob);
       if ((continued_header == NULL) || (*continued_header == '\0'))
       {
+    	  //遇到空行，或者非有效行情况，直接报错（在非有效行时，是不是应继续读？）
          /*
           * No complete header read yet, return what we got.
           * XXX: Should "unread" header instead.
@@ -871,6 +893,7 @@ char *get_header(struct iob *iob)
          break;
       }
 
+      //遇到续行，将其与header连接在一起
       if (JB_ERR_OK != string_join(&header, continued_header))
       {
          log_error(LOG_LEVEL_FATAL,
@@ -878,6 +901,7 @@ char *get_header(struct iob *iob)
       }
       else
       {
+    	  //续行失败
          /* XXX: remove before next stable release. */
          log_error(LOG_LEVEL_HEADER,
             "Merged multiple header lines to: '%s'",
@@ -885,6 +909,7 @@ char *get_header(struct iob *iob)
       }
    }
 
+   //规范header（压缩空格，移除‘：’前的最后一个空格）
    normalize_lws(header);
 
    return header;
@@ -910,10 +935,12 @@ char *get_header(struct iob *iob)
  *          a complete header line.
  *
  *********************************************************************/
+//分析iob，获得一个http请求行，返回""表示无有效行信息，返回NULL表示收到空白行，其它表示有效行
 static char *get_header_line(struct iob *iob)
 {
    char *p, *q, *ret;
 
+   //无数据或者不包含'\n'(即未发现完整line)，返回空串
    if ((iob->cur == NULL)
       || ((p = strchr(iob->cur, '\n')) == NULL))
    {
@@ -922,6 +949,7 @@ static char *get_header_line(struct iob *iob)
 
    *p = '\0';
 
+   //复制此字符串
    ret = strdup(iob->cur);
    if (ret == NULL)
    {
@@ -932,15 +960,18 @@ static char *get_header_line(struct iob *iob)
 
    iob->cur = p+1;
 
+   //发现\r,将line终止
    if ((q = strchr(ret, '\r')) != NULL) *q = '\0';
 
    /* is this a blank line (i.e. the end of the header) ? */
    if (*ret == '\0')
    {
+	   //发现空行
       freez(ret);
       return NULL;
    }
 
+   //发现非空行
    return ret;
 
 }

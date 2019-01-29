@@ -404,6 +404,7 @@ char *chomp(char *string)
  *                JB_ERR_MEMORY if *target_string is NULL.
  *
  *********************************************************************/
+//实现字符串连接
 jb_err string_append(char **target_string, const char *text_to_append)
 {
    size_t old_len;
@@ -475,6 +476,7 @@ jb_err string_append(char **target_string, const char *text_to_append)
  *                   sets *target_string to NULL).
  *
  *********************************************************************/
+//将字符串text_to_append连接到target_string上
 jb_err string_join(char **target_string, char *text_to_append)
 {
    jb_err err;
@@ -548,6 +550,7 @@ char *string_toupper(const char *string)
  * Returns     :  N/A
  *
  *********************************************************************/
+//将src位置的字符串，移至dst位置处
 void string_move(char *dst, char *src)
 {
    assert(dst < src);
@@ -901,7 +904,7 @@ time_t timegm(struct tm *tm)
 Author
 
    Mark Martinec <mark.martinec@ijs.si>, April 1999, June 2000
-   Copyright � 1999, Mark Martinec
+   Copyright � 1999, Mark Martinec
 
  */
 

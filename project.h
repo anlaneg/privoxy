@@ -406,10 +406,10 @@ struct pattern_spec
  */
 struct iob
 {
-   char *buf;    /**< Start of buffer        */
-   char *cur;    /**< Start of relevant data */
-   char *eod;    /**< End of relevant data   */
-   size_t size;  /**< Size as malloc()ed     */
+   char *buf;    /**< Start of buffer        */ //数据起始
+   char *cur;    /**< Start of relevant data */ //当前数据起始
+   char *eod;    /**< End of relevant data   */ //数据结尾
+   size_t size;  /**< Size as malloc()ed     */ //buffer总长度
 };
 
 
@@ -939,7 +939,7 @@ struct client_state
    struct iob iob[1];
 
    /** An I/O buffer used for buffering data read from the client */
-   struct iob client_iob[1];
+   struct iob client_iob[1];//保存自client读取到的数据
 
    /** List of all headers for this request */
    struct list headers[1];

@@ -669,6 +669,7 @@ int read_socket(jb_socket fd, char *buf, int len)
       return(0);
    }
 
+   //自fd中读取len个字符
 #if defined(_WIN32)
    ret = recv(fd, buf, len, 0);
 #elif defined(__BEOS__) || defined(AMIGA) || defined(__OS2__)
@@ -723,6 +724,7 @@ int data_is_available(jb_socket fd, int seconds_to_wait)
    /*
     * XXX: Do we care about the different error conditions?
     */
+   //预读一个字节，检查是否有数据
    return ((n == 1) && (1 == recv(fd, buf, 1, MSG_PEEK)));
 }
 
@@ -1533,6 +1535,7 @@ int socket_is_still_alive(jb_socket sfd)
    struct timeval timeout;
    int ret;
 
+   //将timeout清0
    memset(&timeout, '\0', sizeof(timeout));
    FD_ZERO(&readable_fds);
    FD_SET(sfd, &readable_fds);

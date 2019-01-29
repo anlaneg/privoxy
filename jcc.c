@@ -390,6 +390,7 @@ static void sig_handler(int the_signal)
  *                FALSE if the request doesn't look invalid.
  *
  *********************************************************************/
+//检查是否不支持的请求行
 static int client_protocol_is_unsupported(const struct client_state *csp, char *req)
 {
    /*
@@ -405,6 +406,7 @@ static int client_protocol_is_unsupported(const struct client_state *csp, char *
     *
     * "Could not resolve http://(ftp|gopher)://example.org").
     */
+	//不支持get参数后ftp,gopher协议
    if (!strncmpic(req, "GET ftp://", 10) || !strncmpic(req, "GET gopher://", 13))
    {
       const char *response = NULL;
@@ -1258,6 +1260,7 @@ static char *get_request_line(struct client_state *csp)
        */
       csp->flags &= ~CSP_FLAG_PIPELINED_REQUEST_WAITING;
 
+      //尝试分析request_line,否则告警
       request_line = get_header(csp->client_iob);
       if ((NULL != request_line) && ('\0' != *request_line))
       {
@@ -1272,10 +1275,13 @@ static char *get_request_line(struct client_state *csp)
 
    do
    {
+	   //检查cfd是否可读
       if (!data_is_available(csp->cfd, csp->config->socket_timeout))
       {
+    	  //当前数据在timeout超时前不可读，检查是否可读
          if (socket_is_still_alive(csp->cfd))
          {
+        	 //长时间收不到数据，响应timeout
             log_error(LOG_LEVEL_CONNECT,
                "No request line on socket %d received in time. Timeout: %d.",
                csp->cfd, csp->config->socket_timeout);
@@ -1284,6 +1290,7 @@ static char *get_request_line(struct client_state *csp)
          }
          else
          {
+        	 //数据关闭
             log_error(LOG_LEVEL_CONNECT,
                "The client side of the connection on socket %d got "
                "closed without sending a complete request line.", csp->cfd);
@@ -1291,8 +1298,10 @@ static char *get_request_line(struct client_state *csp)
          return NULL;
       }
 
+      //尝试读取sizeof(buf)-1个字符
       len = read_socket(csp->cfd, buf, sizeof(buf) - 1);
 
+      //读取字行失败或者sock对端关闭
       if (len <= 0) return NULL;
 
       /*
@@ -1304,10 +1313,13 @@ static char *get_request_line(struct client_state *csp)
          return NULL;
       }
 
+      //尝试读取http request line
       request_line = get_header(csp->client_iob);
 
+      //如果遇到空行，或者需要继续读取，则继续本循环。
    } while ((NULL != request_line) && ('\0' == *request_line));
 
+   //返回读到的request_line
    return request_line;
 
 }
@@ -1476,6 +1488,7 @@ static int force_required(const struct client_state *csp, char *request_line)
 {
    char *p;
 
+   //如果有http前缀，则跳过
    p = strstr(request_line, "http://");
    if (p != NULL)
    {
@@ -1488,6 +1501,7 @@ static int force_required(const struct client_state *csp, char *request_line)
       p = request_line;
    }
 
+   //p指向url地址起始位置
    /* Go to the beginning of the path */
    p = strstr(p, "/");
    if (p == NULL)
@@ -1553,14 +1567,17 @@ static jb_err receive_client_request(struct client_state *csp)
 
    memset(buf, 0, sizeof(buf));
 
+   //获取request line
    req = get_request_line(csp);
    if (req == NULL)
    {
+	   //解析失败
       mark_server_socket_tainted(csp);
       return JB_ERR_PARSE;
    }
    assert(*req != '\0');
 
+   //如果请求是不支持的request line,则解析失败
    if (client_protocol_is_unsupported(csp, req))
    {
       return JB_ERR_PARSE;
@@ -1573,10 +1590,12 @@ static jb_err receive_client_request(struct client_state *csp)
    }
 #endif /* def FEATURE_FORCE_LOAD */
 
+   //解析http请求部分
    err = parse_http_request(req, http);
    freez(req);
    if (JB_ERR_OK != err)
    {
+	   //解析http请求头部失败，向对端报错
       write_socket(csp->cfd, CHEADER, strlen(CHEADER));
       /* XXX: Use correct size */
       log_error(LOG_LEVEL_CLF, "%s - - [%T] \"Invalid request\" 400 0", csp->ip_addr_str);
@@ -1589,17 +1608,20 @@ static jb_err receive_client_request(struct client_state *csp)
    }
 
    /* grab the rest of the client's headers */
+   //收集其余的http header
    init_list(headers);
    for (;;)
    {
       p = get_header(csp->client_iob);
 
+      //读取到空行
       if (p == NULL)
       {
          /* There are no additional headers to read. */
          break;
       }
 
+      //需要更多数据来进一步分析header
       if (*p == '\0')
       {
          /*
@@ -1651,6 +1673,7 @@ static jb_err receive_client_request(struct client_state *csp)
       }
    }
 
+   //还未设置host,则分析headers中的host line
    if (http->host == NULL)
    {
       /*
@@ -1842,6 +1865,7 @@ static void chat(struct client_state *csp)
 
    http = csp->http;
 
+   //接收client请求失败，则直接返回
    if (receive_client_request(csp) != JB_ERR_OK)
    {
       return;
