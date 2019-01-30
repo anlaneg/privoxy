@@ -174,6 +174,7 @@ static void set_no_delay_flag(int fd)
  *                file descriptor.
  *
  *********************************************************************/
+//创建到host,portnum对应的fd
 jb_socket connect_to(const char *host, int portnum, struct client_state *csp)
 {
    jb_socket fd;
@@ -187,6 +188,7 @@ jb_socket connect_to(const char *host, int portnum, struct client_state *csp)
        */
       /* errno = 0;*/
 #ifdef HAVE_RFC2553
+       //创建到host,portnum的连接fd
       fd = rfc2553_connect_to(host, portnum, csp);
 #else
       fd = no_rfc2553_connect_to(host, portnum, csp);
@@ -239,6 +241,7 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
    freez(csp->error_message);
    freez(csp->http->host_ip_addr_str);
 
+   //设置service
    retval = snprintf(service, sizeof(service), "%d", portnum);
    if ((-1 == retval) || (sizeof(service) <= retval))
    {
@@ -257,6 +260,7 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
 #ifdef AI_ADDRCONFIG
    hints.ai_flags |= AI_ADDRCONFIG;
 #endif
+   //解析主机名到地址
    if ((retval = getaddrinfo(host, service, &hints, &result)))
    {
       log_error(LOG_LEVEL_INFO,
@@ -270,6 +274,7 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
 
    csp->http->host_ip_addr_str = malloc_or_die(NI_MAXHOST);
 
+   //遍历获取到的地址
    for (rp = result; rp != NULL; rp = rp->ai_next)
    {
 
@@ -297,6 +302,7 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
          continue;
       }
 
+      //创建socket
       fd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 #ifdef _WIN32
       if (fd == JB_INVALID_SOCKET)
@@ -333,6 +339,7 @@ static jb_socket rfc2553_connect_to(const char *host, int portnum, struct client
       }
 #endif /* !defined(_WIN32) && !defined(__BEOS__) && !defined(AMIGA) && !defined(__OS2__) */
 
+      //连接到对应地址
       connect_failed = 0;
       while (connect(fd, rp->ai_addr, rp->ai_addrlen) == JB_INVALID_SOCKET)
       {

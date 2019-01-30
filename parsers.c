@@ -3313,10 +3313,12 @@ static jb_err client_max_forwards(struct client_state *csp, char **header)
  *                JB_ERR_MEMORY on out-of-memory error.
  *
  *********************************************************************/
+//解析"host:"请求行的配置
 static jb_err client_host(struct client_state *csp, char **header)
 {
    char *p, *q;
 
+   //"HOST :" 需要有value,则必须>=7
    if (strlen(*header) < 7)
    {
       log_error(LOG_LEVEL_HEADER, "Removing empty Host header");
@@ -3328,6 +3330,7 @@ static jb_err client_host(struct client_state *csp, char **header)
        *csp->http->hostport == ' ' || *csp->http->hostport == '\0')
    {
 
+      //跳过"HOST :"
       p = strdup_or_die((*header)+6);
       chomp(p);
       q = strdup_or_die(p);
@@ -3339,12 +3342,15 @@ static jb_err client_host(struct client_state *csp, char **header)
       q = strchr(csp->http->host, ':');
       if (q != NULL)
       {
+          //存在port配置，将host截短
          /* Terminate hostname and evaluate port string */
          *q++ = '\0';
+         //转换q为port
          csp->http->port = atoi(q);
       }
       else
       {
+         //如果是ssl,则使用port的默认值
          csp->http->port = csp->http->ssl ? 443 : 80;
       }
 

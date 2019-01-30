@@ -236,12 +236,14 @@ jb_err parse_http_url(const char *url, struct http_request *http, int require_pr
    /*
     * Check for * URI. If found, we're done.
     */
+   //url以'*'号开头
    if (*http->url == '*')
    {
       http->path = strdup_or_die("*");
       http->hostport = strdup_or_die("");
       if (http->url[1] != '\0')
       {
+          //此时url必须仅为'*'
          return JB_ERR_PARSE;
       }
       return JB_ERR_OK;
@@ -428,8 +430,10 @@ jb_err parse_http_url(const char *url, struct http_request *http, int require_pr
  * Returns     :  TRUE if it's unknown, FALSE otherwise.
  *
  *********************************************************************/
+//检查method是否为未知method
 static int unknown_method(const char *method)
 {
+    //已知的http　method
    static const char * const known_http_methods[] = {
       /* Basic HTTP request type */
       "GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS", "TRACE", "CONNECT",
@@ -494,17 +498,20 @@ static int unknown_method(const char *method)
  *                JB_ERR_PARSE if the HTTP version is unsupported
  *
  *********************************************************************/
+//解析大小版本号
 jb_err static normalize_http_version(char *http_version)
 {
    unsigned int major_version;
    unsigned int minor_version;
 
+   //解析大小版本号
    if (2 != sscanf(http_version, "HTTP/%u.%u", &major_version, &minor_version))
    {
       log_error(LOG_LEVEL_ERROR, "Unsupported HTTP version: %s", http_version);
       return JB_ERR_PARSE;
    }
 
+   //当前支持的协议版本号检查
    if (major_version != 1 || (minor_version != 0 && minor_version != 1))
    {
       log_error(LOG_LEVEL_ERROR, "The only supported HTTP "
@@ -543,10 +550,12 @@ jb_err parse_http_request(const char *req, struct http_request *http)
    int n;
    jb_err err;
 
+   //清空http
    memset(http, '\0', sizeof(*http));
 
    buf = strdup_or_die(req);
 
+   //将buf行拆分，如果不足３部分，则报错
    n = ssplit(buf, " \r\n", v, SZ(v));
    if (n != 3)
    {
@@ -565,19 +574,23 @@ jb_err parse_http_request(const char *req, struct http_request *http)
     */
    if (unknown_method(v[0]))
    {
+      //method方法未知，解析失败
       log_error(LOG_LEVEL_ERROR, "Unknown HTTP method detected: %s", v[0]);
       freez(buf);
       return JB_ERR_PARSE;
    }
 
+   //规则化http版本号
    if (JB_ERR_OK != normalize_http_version(v[2]))
    {
       freez(buf);
       return JB_ERR_PARSE;
    }
 
+   //如果method为connect，则定为ssl
    http->ssl = !strcmpic(v[0], "CONNECT");
 
+   //解析获得url地址
    err = parse_http_url(v[1], http, !http->ssl);
    if (err)
    {
@@ -1363,6 +1376,7 @@ int match_portlist(const char *portlist, int port)
    /*
     * Zero-terminate first item and remember offset for next
     */
+   //将','号替换为'\0'
    if (NULL != (next = strchr(portlist_copy, (int) ',')))
    {
       *next++ = '\0';

@@ -597,6 +597,7 @@ void set_keep_alive_timeout(unsigned int timeout)
  * Returns     :  JB_INVALID_SOCKET => failure, else it is the socket file descriptor.
  *
  *********************************************************************/
+//连接到fwd服务器
 jb_socket forwarded_connect(const struct forward_spec * fwd,
                             struct http_request *http,
                             struct client_state *csp)
@@ -618,6 +619,7 @@ jb_socket forwarded_connect(const struct forward_spec * fwd,
 #endif /* def FEATURE_CONNECTION_SHARING */
 
    /* Figure out if we need to connect to the web server or a HTTP proxy. */
+   //如果有fwd的forward_host,则转给指定host,port
    if (fwd->forward_host)
    {
       /* HTTP proxy */
@@ -636,14 +638,17 @@ jb_socket forwarded_connect(const struct forward_spec * fwd,
    {
       case SOCKS_NONE:
       case FORWARD_WEBSERVER:
+          //连接到dest_host,dest_port
          sfd = connect_to(dest_host, dest_port, csp);
          break;
       case SOCKS_4:
       case SOCKS_4A:
+          //连接到socks4服务器
          sfd = socks4_connect(fwd, dest_host, dest_port, csp);
          break;
       case SOCKS_5:
       case SOCKS_5T:
+          //连接到socks5服务器
          sfd = socks5_connect(fwd, dest_host, dest_port, csp);
          break;
       default:
@@ -795,6 +800,7 @@ static jb_socket socks4_connect(const struct forward_spec * fwd,
    c->dstip[3]    = (unsigned char)((web_server_addr        ) & 0xff);
 
    /* pass the request to the socks server */
+   //连接到socks4
    sfd = connect_to(fwd->gateway_host, fwd->gateway_port, csp);
 
    if (sfd == JB_INVALID_SOCKET)
@@ -987,6 +993,7 @@ static jb_socket socks5_connect(const struct forward_spec *fwd,
    }
 
    /* pass the request to the socks server */
+   //连接到socks5
    sfd = connect_to(fwd->gateway_host, fwd->gateway_port, csp);
 
    if (sfd == JB_INVALID_SOCKET)

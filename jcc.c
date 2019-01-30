@@ -951,7 +951,9 @@ static jb_err change_request_destination(struct client_state *csp)
 
    log_error(LOG_LEVEL_REDIRECTS, "Rewrite detected: %s",
       csp->headers->first->str);
+   //移除http中的原有数据
    free_http_request(http);
+   //解析请求行
    err = parse_http_request(csp->headers->first->str, http);
    if (JB_ERR_OK != err)
    {
@@ -1790,6 +1792,7 @@ static jb_err parse_client_request(struct client_state *csp)
       || (strcmp(http->cmd, csp->headers->first->str) &&
          (JB_ERR_OK != change_request_destination(csp))))
    {
+       //解析请求行失败，向对端响应request格式有误
       /*
        * A header filter broke the request line - bail out.
        */
@@ -1804,6 +1807,7 @@ static jb_err parse_client_request(struct client_state *csp)
       return JB_ERR_PARSE;
    }
 
+   //解析失败，请求包含不支持的信息
    if (client_has_unsupported_expectations(csp))
    {
       return JB_ERR_PARSE;
@@ -1870,12 +1874,15 @@ static void chat(struct client_state *csp)
    {
       return;
    }
+
+   //解析请求行
    if (parse_client_request(csp) != JB_ERR_OK)
    {
       return;
    }
 
    /* decide how to route the HTTP request */
+   //决定如何路由此http请求
    fwd = forward_url(csp, http);
    if (NULL == fwd)
    {
@@ -1953,6 +1960,7 @@ static void chat(struct client_state *csp)
    log_applied_actions(csp->action);
    log_error(LOG_LEVEL_GPC, "%s%s", http->hostport, http->path);
 
+   //显示forward到指定host,port
    if (fwd->forward_host)
    {
       log_error(LOG_LEVEL_CONNECT, "via [%s]:%d to: %s",

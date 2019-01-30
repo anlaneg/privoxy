@@ -2539,6 +2539,7 @@ const struct forward_spec *forward_url(struct client_state *csp,
       return fwd_default;
    }
 
+   //用户配置了fwd,检查匹配,如果匹配，则返回fwd
    while (fwd != NULL)
    {
       if (url_match(fwd->url, http))

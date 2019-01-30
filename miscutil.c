@@ -111,6 +111,7 @@ void *zalloc(size_t size)
  * Returns     :  Pointer to newly strdup'd copy of the string.
  *
  *********************************************************************/
+//复制字符串
 char *strdup_or_die(const char *str)
 {
    char *new_str;
@@ -250,11 +251,13 @@ unsigned int hash_string(const char* s)
  * Returns     :  0 if s1==s2, Negative if s1<s2, Positive if s1>s2
  *
  *********************************************************************/
+//字符串比较（忽略字符大小写）
 int strcmpic(const char *s1, const char *s2)
 {
    if (!s1) s1 = "";
    if (!s2) s2 = "";
 
+   //统一切换为lower进行比对
    while (*s1 && *s2)
    {
       if ((*s1 != *s2) && (privoxy_tolower(*s1) != privoxy_tolower(*s2)))
@@ -317,6 +320,7 @@ int strncmpic(const char *s1, const char *s2, size_t n)
  * Returns     :  chomped string
  *
  *********************************************************************/
+//移除尾部空白字符，移除头部空白字符
 char *chomp(char *string)
 {
    char *p, *q, *r;
@@ -345,6 +349,7 @@ char *chomp(char *string)
     */
    if (q != string)
    {
+      //头部非string长度，长度向字符串前移
       while (q <= p)
       {
          *r++ = *q++;

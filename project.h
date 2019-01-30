@@ -277,18 +277,19 @@ struct map
  */
 struct http_request
 {
+   //请求行
    char *cmd;      /**< Whole command line: method, URL, Version */
    char *ocmd;     /**< Backup of original cmd for CLF logging */
    char *gpc;      /**< HTTP method: GET, POST, ... */
-   char *url;      /**< The URL */
-   char *ver;      /**< Protocol version */
+   char *url;      /**< The URL */ //设置http url地址
+   char *ver;      /**< Protocol version */ //版本号
    int status;     /**< HTTP Status */
 
-   char *host;     /**< Host part of URL */
-   int   port;     /**< Port of URL or 80 (default) */
+   char *host;     /**< Host part of URL */ //指向host
+   int   port;     /**< Port of URL or 80 (default) */ //指向host对应的目的端口
    char *path;     /**< Path of URL */
-   char *hostport; /**< host[:port] */
-   int   ssl;      /**< Flag if protocol is https */
+   char *hostport; /**< host[:port] */ //指向host及port
+   int   ssl;      /**< Flag if protocol is https */ //是否为ssl连接
 
    char *host_ip_addr_str; /**< String with dotted decimal representation
                                 of host's IP. NULL before connect_to() */
@@ -657,7 +658,7 @@ enum forwarder_type {
     * The difference to SOCKS_NONE is that a request line without
     * full URL is sent.
     */
-   FORWARD_WEBSERVER,
+   FORWARD_WEBSERVER,//forward到webserver
 };
 
 /*
@@ -667,7 +668,7 @@ enum forwarder_type {
  */
 struct reusable_connection
 {
-   jb_socket sfd;
+   jb_socket sfd;//服务器端fd
    int       in_use;
    time_t    timestamp; /* XXX: rename? */
 

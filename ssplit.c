@@ -88,6 +88,7 @@ int ssplit(char *str, const char *delim, char *vec[], size_t vec_len)
 
    memset(is_delim, '\0', sizeof(is_delim));
 
+   //如需要，则设置默认划分符
    if (!delim)
    {
       delim = " \t";  /* default field separators */
