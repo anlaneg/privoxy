@@ -1,0 +1,2 @@
+forward-socks5 .google.com 127.0.0.1:1080 .
+forward-socks5 google.com 127.0.0.1:1080 .
